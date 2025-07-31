@@ -177,98 +177,66 @@ async def start_server(interaction: discord.Interaction):
         status_info = await minecraft_manager.get_server_status()
         
         if not status_info:
-            error_msg = "❌ **Error al verificar el estado del servidor**\nNo se pudo obtener el estado actual del servidor. Por favor, inténtalo de nuevo más tarde."
             if interaction.response.is_done():
-                await interaction.followup.send(error_msg)
+                await interaction.followup.send("❌ Error al verificar el estado del servidor")
             else:
-                await interaction.response.send_message(error_msg)
+                await interaction.response.send_message("❌ Error al verificar el estado del servidor")
             return
         
-        if status_info["status"].lower() == "running":
-            embed = discord.Embed(
-                title="ℹ️ **Servidor ya en ejecución**",
-                description="El servidor de Minecraft ya está en línea.",
-                color=0x3498db
-            )
-            embed.add_field(name="IP del Servidor", value=f"`{status_info['ip_address']}:25565`", inline=False)
-            embed.add_field(name="Estado", value="🟢 En línea y listo para jugar", inline=False)
-            
+        if status_info["status"] == "Running":
+            msg = "⚠️ El servidor ya está en ejecución"
             if interaction.response.is_done():
-                await interaction.followup.send(embed=embed)
+                await interaction.followup.send(msg)
             else:
-                await interaction.response.send_message(embed=embed)
+                await interaction.response.send_message(msg)
             return
         
         # Enviar mensaje inicial
-        embed = discord.Embed(
-            title="🚀 **Iniciando servidor...**",
-            description="El servidor de Minecraft está iniciando. Esto puede tomar unos minutos. Te avisaré cuando esté listo.",
-            color=0xf1c40f
-        )
-        
+        msg = "🚀 Iniciando servidor de Minecraft... Esto puede tomar unos minutos."
         if interaction.response.is_done():
-            status_message = await interaction.followup.send(embed=embed)
+            await interaction.followup.send(msg)
         else:
-            status_message = await interaction.response.send_message(embed=embed)
+            await interaction.response.send_message(msg)
         
         # Iniciar el servidor
         success = await minecraft_manager.start_server()
         
         if not success:
-            embed = discord.Embed(
-                title="❌ **Error al iniciar el servidor**",
-                description="No se pudo iniciar el servidor de Minecraft. Por favor, verifica los logs para más información.",
-                color=0xe74c3c
-            )
             if interaction.response.is_done():
-                await interaction.followup.send(embed=embed)
+                await interaction.followup.send("❌ Error al iniciar el servidor")
             else:
-                await interaction.response.send_message(embed=embed)
+                await interaction.response.send_message("❌ Error al iniciar el servidor")
             return
         
         # Esperar y verificar el estado varias veces
         max_attempts = 12  # 12 intentos * 10 segundos = 2 minutos
         for attempt in range(max_attempts):
             await asyncio.sleep(10)  # Esperar 10 segundos entre intentos
-            
-            # Actualizar mensaje de estado
-            embed.description = f"🔄 El servidor está iniciando... (Intento {attempt + 1}/{max_attempts})\nEsto puede tardar unos minutos. Por favor, espera."
-            await status_message.edit(embed=embed)
-            
             status_info = await minecraft_manager.get_server_status()
             
-            if status_info and status_info["status"].lower() == "running" and status_info["ip_address"] != "No IP":
-                embed = discord.Embed(
-                    title="✅ **¡Servidor Iniciado!**",
-                    description="El servidor de Minecraft está ahora en línea y listo para jugar.",
-                    color=0x2ecc71
-                )
-                embed.add_field(name="IP del Servidor", value=f"`{status_info['ip_address']}:25565`", inline=False)
-                embed.add_field(name="Estado", value="🟢 **En línea** - ¡Listo para jugar!", inline=False)
-                embed.set_footer(text=f"Iniciado el {discord.utils.format_dt(discord.utils.utcnow(), 'f')}")
+            if status_info and status_info["status"] == "Running" and status_info["ip_address"] != "No IP":
+                msg = f"✅ **¡Servidor Iniciado!**\n\n" \n                      f"🔗 **IP del Servidor:** `{status_info['ip_address']}:25565`\n" \n                      f"🟢 **Estado:** En línea y listo para jugar"
                 
-                await status_message.edit(embed=embed)
+                if interaction.response.is_done():
+                    await interaction.followup.send(msg)
+                else:
+                    await interaction.response.send_message(msg)
                 return
         
         # Si llegamos aquí, el servidor no se inició correctamente
-        embed = discord.Embed(
-            title="⚠️ **Tiempo de espera agotado**",
-            description="El servidor está tardando más de lo esperado en iniciar.\nPor favor, verifica el estado en unos minutos o revisa los logs para más información.",
-            color=0xe67e22
-        )
-        await status_message.edit(embed=embed)
+        msg = "⚠️ El servidor está tardando más de lo esperado en iniciar. Por favor, verifica el estado en unos minutos."
+        if interaction.response.is_done():
+            await interaction.followup.send(msg)
+        else:
+            await interaction.response.send_message(msg)
     
     except Exception as e:
-        logging.error(f"Error en start_server: {e}")
-        error_embed = discord.Embed(
-            title="❌ **Error inesperado**",
-            description=f"Se produjo un error al intentar iniciar el servidor.\n\n**Detalles:**\n```{str(e)}```\nPor favor, contacta con un administrador.",
-            color=0xe74c3c
-        )
+        error_msg = f"❌ Error inesperado: {str(e)}"
         if interaction.response.is_done():
-            await interaction.followup.send(embed=error_embed)
+            await interaction.followup.send(error_msg)
         else:
-            await interaction.response.send_message(embed=error_embed)
+            await interaction.response.send_message(error_msg)
+        logging.error(f"Error en start_server: {e}")
 
 @bot.tree.command(name="stopminecraft", description="Detiene el servidor de Minecraft")
 async def stop_server(interaction: discord.Interaction):
@@ -282,97 +250,61 @@ async def stop_server(interaction: discord.Interaction):
         status_info = await minecraft_manager.get_server_status()
         
         if not status_info:
-            embed = discord.Embed(
-                title="❌ **Error de conexión**",
-                description="No se pudo verificar el estado actual del servidor.\nPor favor, inténtalo de nuevo más tarde.",
-                color=0xe74c3c
-            )
             if interaction.response.is_done():
-                await interaction.followup.send(embed=embed)
+                await interaction.followup.send("❌ Error al verificar el estado del servidor")
             else:
-                await interaction.response.send_message(embed=embed)
+                await interaction.response.send_message("❌ Error al verificar el estado del servidor")
             return
         
-        if status_info["status"].lower() != "running":
-            embed = discord.Embed(
-                title="ℹ️ **Servidor no está en ejecución**",
-                description="El servidor de Minecraft ya está detenido.",
-                color=0x3498db
-            )
-            embed.add_field(name="Estado actual", value=f"`{status_info['status']}`", inline=False)
-            
+        if status_info["status"] != "Running":
+            msg = "⚠️ El servidor no está en ejecución"
             if interaction.response.is_done():
-                await interaction.followup.send(embed=embed)
+                await interaction.followup.send(msg)
             else:
-                await interaction.response.send_message(embed=embed)
+                await interaction.response.send_message(msg)
             return
         
         # Enviar mensaje inicial
-        embed = discord.Embed(
-            title="⏳ **Deteniendo el servidor...**",
-            description="El servidor de Minecraft se está deteniendo. Esto puede tardar unos momentos.",
-            color=0xf39c12
-        )
-        
+        msg = "🛑 Deteniendo servidor de Minecraft..."
         if interaction.response.is_done():
-            status_message = await interaction.followup.send(embed=embed)
+            await interaction.followup.send(msg)
         else:
-            status_message = await interaction.response.send_message(embed=embed)
+            await interaction.response.send_message(msg)
         
         # Detener el servidor
         success = await minecraft_manager.stop_server()
         
         if not success:
-            embed = discord.Embed(
-                title="❌ **Error al detener el servidor**",
-                description="No se pudo detener el servidor de Minecraft.\nPor favor, verifica los logs para más información.",
-                color=0xe74c3c
-            )
-            await status_message.edit(embed=embed)
+            if interaction.response.is_done():
+                await interaction.followup.send("❌ Error al detener el servidor")
+            else:
+                await interaction.response.send_message("❌ Error al detener el servidor")
             return
         
         # Verificar que se detuvo correctamente
-        max_attempts = 6  # 6 intentos * 5 segundos = 30 segundos máx de espera
-        for attempt in range(max_attempts):
-            await asyncio.sleep(5)  # Esperar 5 segundos entre intentos
-            
-            # Actualizar mensaje de estado
-            embed.description = f"⏳ El servidor se está deteniendo... (Intento {attempt + 1}/{max_attempts})\nPor favor, espera un momento."
-            await status_message.edit(embed=embed)
-            
-            status_info = await minecraft_manager.get_server_status()
-            
-            if not status_info or status_info["status"].lower() != "running":
-                embed = discord.Embed(
-                    title="✅ **¡Servidor Detenido!**",
-                    description="El servidor de Minecraft se ha detenido correctamente.",
-                    color=0x2ecc71
-                )
-                embed.add_field(name="Estado", value="🔴 **Detenido** - El servidor no está en ejecución", inline=False)
-                embed.set_footer(text=f"Detenido el {discord.utils.format_dt(discord.utils.utcnow(), 'f')}")
-                
-                await status_message.edit(embed=embed)
-                return
+        await asyncio.sleep(5)  # Esperar un momento para que se complete la operación
+        status_info = await minecraft_manager.get_server_status()
         
-        # Si llegamos aquí, no se pudo confirmar que se detuvo
-        embed = discord.Embed(
-            title="⚠️ **Advertencia**",
-            description="El servidor está tardando más de lo esperado en detenerse.\nEl estado puede no ser preciso. Por favor, verifica manualmente.",
-            color=0xe67e22
-        )
-        await status_message.edit(embed=embed)
+        if status_info and status_info["status"] != "Running":
+            msg = "✅ **¡Servidor Detenido!**\n\n" \n                  "🔴 El servidor de Minecraft ha sido detenido correctamente."
+            if interaction.response.is_done():
+                await interaction.followup.send(msg)
+            else:
+                await interaction.response.send_message(msg)
+        else:
+            msg = "⚠️ El servidor está tardando en detenerse. Por favor, verifica el estado en unos segundos."
+            if interaction.response.is_done():
+                await interaction.followup.send(msg)
+            else:
+                await interaction.response.send_message(msg)
     
     except Exception as e:
-        logging.error(f"Error en stop_server: {e}")
-        error_embed = discord.Embed(
-            title="❌ **Error inesperado**",
-            description=f"Se produjo un error al intentar detener el servidor.\n\n**Detalles:**\n```{str(e)}```\nPor favor, contacta con un administrador.",
-            color=0xe74c3c
-        )
+        error_msg = f"❌ Error inesperado: {str(e)}"
         if interaction.response.is_done():
-            await interaction.followup.send(embed=error_embed)
+            await interaction.followup.send(error_msg)
         else:
-            await interaction.response.send_message(embed=error_embed)
+            await interaction.response.send_message(error_msg)
+        logging.error(f"Error en stop_server: {e}")
 
 @bot.tree.command(name="ayudaminecraft", description="Muestra todos los comandos disponibles para Minecraft")
 async def help_minecraft(interaction: discord.Interaction):
