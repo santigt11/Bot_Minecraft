@@ -101,7 +101,7 @@ async def check_server_status(interaction: discord.Interaction):
         
     return status_info
 
-@bot.tree.command(name="status", description="Muestra el estado del servidor de Minecraft")
+@bot.tree.command(name="statusminecraft", description="Muestra el estado del servidor de Minecraft")
 async def server_status(interaction: discord.Interaction):
     """Comando para ver el estado del servidor"""
     await interaction.response.defer()
@@ -125,7 +125,7 @@ async def server_status(interaction: discord.Interaction):
     
     await interaction.followup.send(embed=embed)
 
-@bot.tree.command(name="start", description="Inicia el servidor de Minecraft")
+@bot.tree.command(name="startminecraft", description="Inicia el servidor de Minecraft")
 async def start_server(interaction: discord.Interaction):
     """Comando para iniciar el servidor"""
     await interaction.response.defer()
@@ -169,7 +169,7 @@ async def start_server(interaction: discord.Interaction):
     # Si llegamos aquí, el servidor no se inició correctamente
     await interaction.followup.send("⚠️ El servidor está tardando más de lo esperado en iniciar. Por favor, verifica el estado en unos minutos.")
 
-@bot.tree.command(name="stop", description="Detiene el servidor de Minecraft")
+@bot.tree.command(name="stopminecraft", description="Detiene el servidor de Minecraft")
 async def stop_server(interaction: discord.Interaction):
     """Comando para detener el servidor"""
     await interaction.response.defer()
@@ -206,7 +206,7 @@ async def stop_server(interaction: discord.Interaction):
     else:
         await interaction.followup.send("❌ Error al detener el servidor")
 
-@bot.tree.command(name="ayuda", description="Muestra todos los comandos disponibles")
+@bot.tree.command(name="ayudaminecraft", description="Muestra todos los comandos disponibles para Minecraft")
 async def help_minecraft(interaction: discord.Interaction):
     """Comando de ayuda personalizado"""
     embed = discord.Embed(
@@ -216,17 +216,17 @@ async def help_minecraft(interaction: discord.Interaction):
     )
     
     embed.add_field(
-        name="/status", 
+        name="/statusminecraft", 
         value="🔍 Muestra el estado actual del servidor", 
         inline=False
     )
     embed.add_field(
-        name="/start", 
+        name="/startminecraft", 
         value="🚀 Inicia el servidor de Minecraft", 
         inline=False
     )
     embed.add_field(
-        name="/stop", 
+        name="/stopminecraft", 
         value="⛔ Detiene el servidor de Minecraft", 
         inline=False
     )
@@ -243,13 +243,48 @@ async def on_ready():
     except Exception as e:
         print(f"Error al sincronizar comandos: {e}")
 
+@bot.event
+async def on_command_error(ctx, error):
+    if isinstance(error, commands.CommandNotFound):
+        # No responder a comandos con prefijo, ya que ahora usamos comandos slash
+        return
+    await ctx.send(f"❌ Error: {str(error)}")
+    logging.error(f"Command error: {error}")
+
+# Sincronizar comandos al iniciar
+@bot.event
+async def setup_hook():
+    try:
+        synced = await bot.tree.sync()
+        print(f"✅ Comandos sincronizados: {len(synced)}")
+    except Exception as e:
+        print(f"❌ Error al sincronizar comandos: {e}")
+
+@bot.event
+async def on_ready():
+    print(f'✅ {bot.user} ha iniciado sesión!')
+    print(f'🌐 Conectado a {len(bot.guilds)} servidores')
+    print('🔍 Usa /ayuda para ver los comandos disponibles')
+    
+    # Intentar sincronizar comandos al iniciar
+    try:
+        synced = await bot.tree.sync()
+        print(f"✅ {len(synced)} comandos sincronizados")
+    except Exception as e:
+        print(f"❌ Error al sincronizar comandos: {e}")
+
 if __name__ == "__main__":
     # El token debe estar en una variable de entorno
     TOKEN = os.getenv('DISCORD_BOT_TOKEN')
     
     if not TOKEN:
-        print("Error: DISCORD_BOT_TOKEN no está configurado")
-        print("Configura la variable de entorno DISCORD_BOT_TOKEN con el token de tu bot")
+        print("❌ Error: DISCORD_BOT_TOKEN no está configurado")
+        print("🔧 Configura la variable de entorno DISCORD_BOT_TOKEN con el token de tu bot")
         exit(1)
     
-    bot.run(TOKEN)
+    try:
+        bot.run(TOKEN)
+    except discord.LoginFailure:
+        print("❌ Error de autenticación: Token inválido")
+    except Exception as e:
+        print(f"❌ Error inesperado: {e}")
