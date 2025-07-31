@@ -215,7 +215,9 @@ async def start_server(interaction: discord.Interaction):
             status_info = await minecraft_manager.get_server_status()
             
             if status_info and status_info["status"] == "Running" and status_info["ip_address"] != "No IP":
-                msg = f"✅ **¡Servidor Iniciado!**\n\n" \n                      f"🔗 **IP del Servidor:** `{status_info['ip_address']}:25565`\n" \n                      f"🟢 **Estado:** En línea y listo para jugar"
+                msg = (f"✅ **¡Servidor Iniciado!**\n\n"
+                      f"🔗 **IP del Servidor:** `{status_info['ip_address']}:25565`\n"
+                      f"🟢 **Estado:** En línea y listo para jugar")
                 
                 if interaction.response.is_done():
                     await interaction.followup.send(msg)
@@ -286,7 +288,8 @@ async def stop_server(interaction: discord.Interaction):
         status_info = await minecraft_manager.get_server_status()
         
         if status_info and status_info["status"] != "Running":
-            msg = "✅ **¡Servidor Detenido!**\n\n" \n                  "🔴 El servidor de Minecraft ha sido detenido correctamente."
+            msg = ("✅ **¡Servidor Detenido!**\n\n"
+                  "🔴 El servidor de Minecraft ha sido detenido correctamente.")
             if interaction.response.is_done():
                 await interaction.followup.send(msg)
             else:
