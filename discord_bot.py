@@ -24,7 +24,7 @@ intents.message_content = True
 
 # Crear bot con soporte para comandos slash
 bot = commands.Bot(command_prefix='!', intents=intents)
-tree = app_commands.CommandTree(bot)
+tree = bot.tree
 
 class MinecraftManager:
     def __init__(self):
