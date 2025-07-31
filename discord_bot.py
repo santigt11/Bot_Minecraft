@@ -43,48 +43,83 @@ class MinecraftManager:
         
         self.container_client = ContainerInstanceManagementClient(self.credential, SUBSCRIPTION_ID)
     
-    async def get_server_status(self):
-        """Obtiene el estado actual del servidor"""
+    def _get_server_status_sync(self):
+        """Versión síncrona de get_server_status para ejecutar en un hilo separado"""
         try:
             container = self.container_client.container_groups.get(RESOURCE_GROUP, CONTAINER_NAME)
-            
             status = container.instance_view.state if container.instance_view else "Unknown"
             ip_address = container.ip_address.ip if container.ip_address else "No IP"
-            
-            return {
-                "status": status,
-                "ip_address": ip_address,
-                "name": container.name
-            }
+            return {"status": status, "ip_address": ip_address, "name": container.name}
         except Exception as e:
             logging.error(f"Error getting server status: {e}")
             return None
+            
+    async def get_server_status(self):
+        """Obtiene el estado actual del servidor"""
+        return await self._run_in_executor(self._get_server_status_sync)
     
+    async def _run_in_executor(self, func, *args):
+        """Ejecuta una función síncrona en un ejecutor de hilos"""
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(None, func, *args)
+
+    def _start_server_sync(self):
+        """Versión síncrona de start_server para ejecutar en un hilo separado"""
+        try:
+            operation = self.container_client.container_groups.begin_start(
+                resource_group_name=RESOURCE_GROUP,
+                container_group_name=CONTAINER_NAME
+            )
+            result = operation.result()
+            return True
+        except Exception as e:
+            logging.error(f"Error al iniciar el servidor: {e}")
+            return False
+            
     async def start_server(self):
         """Inicia el servidor de Minecraft"""
-        try:
-            logging.info("Starting Minecraft server...")
-            operation = self.container_client.container_groups.begin_start(RESOURCE_GROUP, CONTAINER_NAME)
-            
-            # Esperar a que complete (esto puede tomar unos minutos)
-            result = operation.result()
-            return True
-        except Exception as e:
-            logging.error(f"Error starting server: {e}")
-            return False
+        return await self._run_in_executor(self._start_server_sync)
     
+    def _stop_server_sync(self):
+        """Versión síncrona de stop_server para ejecutar en un hilo separado"""
+        try:
+            # Primero intentamos detener el contenedor usando la API de reinicio con estado detenido
+            container = self.container_client.container_groups.get(
+                resource_group_name=RESOURCE_GROUP,
+                container_group_name=CONTAINER_NAME
+            )
+            
+            # Si el contenedor ya está detenido, no hacemos nada
+            if container.instance_view and container.instance_view.state.lower() != 'running':
+                return True
+                
+            # Detener el contenedor
+            self.container_client.container_groups.stop(
+                resource_group_name=RESOURCE_GROUP,
+                container_group_name=CONTAINER_NAME
+            )
+            
+            # Verificar que se detuvo
+            max_attempts = 12
+            for _ in range(max_attempts):
+                container = self.container_client.container_groups.get(
+                    resource_group_name=RESOURCE_GROUP,
+                    container_group_name=CONTAINER_NAME
+                )
+                if container.instance_view and container.instance_view.state.lower() != 'running':
+                    return True
+                time.sleep(5)
+                
+            logging.warning("El contenedor no se detuvo en el tiempo esperado")
+            return False
+            
+        except Exception as e:
+            logging.error(f"Error al detener el servidor: {e}")
+            return False
+            
     async def stop_server(self):
         """Detiene el servidor de Minecraft"""
-        try:
-            logging.info("Stopping Minecraft server...")
-            operation = self.container_client.container_groups.begin_stop(RESOURCE_GROUP, CONTAINER_NAME)
-            
-            # Esperar a que complete
-            result = operation.result()
-            return True
-        except Exception as e:
-            logging.error(f"Error stopping server: {e}")
-            return False
+        return await self._run_in_executor(self._stop_server_sync)
 
 # Instancia del manager
 minecraft_manager = MinecraftManager()
