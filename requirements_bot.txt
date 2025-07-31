@@ -1,0 +1,4 @@
+discord.py
+azure-identity
+azure-mgmt-containerinstance
+aiohttp

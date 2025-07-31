@@ -1,0 +1,4 @@
+azure-functions
+azure-identity
+azure-mgmt-containerinstance
+azure-data-tables
