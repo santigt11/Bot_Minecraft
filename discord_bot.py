@@ -216,7 +216,7 @@ async def start_server(interaction: discord.Interaction):
             
             if status_info and status_info["status"] == "Running" and status_info["ip_address"] != "No IP":
                 msg = (f"✅ **¡Servidor Iniciado!**\n\n"
-                      f"🔗 **IP del Servidor:** `{status_info['ip_address']}:25565`\n"
+                      f"🔗 **IP del Servidor:** `minecraftsanti.eastus.azurecontainer.io`\n"
                       f"🟢 **Estado:** En línea y listo para jugar")
                 
                 if interaction.response.is_done():
@@ -252,27 +252,26 @@ async def stop_server(interaction: discord.Interaction):
         status_info = await minecraft_manager.get_server_status()
         
         if not status_info:
-            if interaction.response.is_done():
-                await interaction.followup.send("❌ Error al verificar el estado del servidor")
-            else:
-                await interaction.response.send_message("❌ Error al verificar el estado del servidor")
-            return
-        
-        if status_info["status"] != "Running":
-            msg = "⚠️ El servidor no está en ejecución"
+            msg = "❌ No se pudo obtener el estado del servidor"
             if interaction.response.is_done():
                 await interaction.followup.send(msg)
             else:
                 await interaction.response.send_message(msg)
             return
+            
+        status_text = "🟢 En línea" if status_info["status"].lower() == "running" else "🔴 Detenido"
+        msg = (
+            f"📊 **Estado del Servidor**\n\n"
+            f"🖥️ **Estado:** {status_text}\n"
+            f"🌐 **IP:** `{status_info.get('ip_address', 'No disponible')}:25565`\n"
+            f"📅 **Última actualización:** <t:{int(time.time())}:R>"
+        )
         
-        # Enviar mensaje inicial
-        msg = "🛑 Deteniendo servidor de Minecraft..."
         if interaction.response.is_done():
             await interaction.followup.send(msg)
         else:
             await interaction.response.send_message(msg)
-        
+            
         # Detener el servidor
         success = await minecraft_manager.stop_server()
         
