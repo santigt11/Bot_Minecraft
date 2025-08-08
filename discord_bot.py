@@ -345,6 +345,28 @@ async def help_minecraft(interaction: discord.Interaction):
     
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
+@bot.tree.command(name="forzarsync", description="[OWNER] Fuerza sincronización de comandos")
+async def force_sync(interaction: discord.Interaction):
+    """Comando para forzar sincronización (solo para dueños)"""
+    if not await bot.is_owner(interaction.user):
+        await interaction.response.send_message("❌ Solo el dueño del bot puede usar este comando.", ephemeral=True)
+        return
+    
+    await interaction.response.defer(ephemeral=True)
+    
+    try:
+        # Limpiar y sincronizar
+        bot.tree.clear_commands()
+        synced = await bot.tree.sync()
+        await interaction.followup.send(f"✅ Sincronización forzada completada. {len(synced)} comandos registrados.", ephemeral=True)
+    except Exception as e:
+        await interaction.followup.send(f"❌ Error en sincronización: {e}", ephemeral=True)
+
+@bot.tree.command(name="test", description="Comando de prueba simple")
+async def test_command(interaction: discord.Interaction):
+    """Comando de prueba muy simple"""
+    await interaction.response.send_message("✅ El bot funciona correctamente!", ephemeral=True)
+
 @bot.tree.command(name="debugpermisos", description="[DEBUG] Verifica permisos del usuario actual")
 @app_commands.describe()
 @app_commands.guild_only()
@@ -384,35 +406,45 @@ async def debug_permisos(interaction: discord.Interaction):
 # Sincronizar comandos al iniciar
 @bot.event
 async def setup_hook():
-    print("🔄 Limpiando comandos antiguos...")
+    print("🔄 Iniciando limpieza completa de comandos...")
     try:
-        # Limpiar todos los comandos existentes
+        # Limpiar todos los comandos existentes (global y guild)
         bot.tree.clear_commands()
         
-        # Sincronizar para limpiar comandos en Discord
+        # Sincronizar para limpiar comandos globales
         await bot.tree.sync()
-        print("🧹 Comandos antiguos eliminados")
+        print("🧹 Comandos globales eliminados")
         
-        # Esperar un momento para asegurar la limpieza
-        await asyncio.sleep(1)
+        # También limpiar comandos específicos de guild si existe
+        for guild in bot.guilds:
+            try:
+                await bot.tree.sync(guild=guild)
+                print(f"🧹 Comandos del servidor {guild.name} eliminados")
+            except Exception as e:
+                print(f"⚠️ Error limpiando comandos del servidor {guild.name}: {e}")
         
-        # Configurar permisos por defecto explícitamente
+        # Esperar un momento
+        await asyncio.sleep(2)
+        
+        # Configurar permisos por defecto explícitamente para todos los comandos
+        print("⚙️ Configurando permisos por defecto...")
         for command in bot.tree.walk_commands():
             if hasattr(command, 'default_member_permissions'):
                 command.default_member_permissions = None  # Sin restricciones
             if hasattr(command, 'dm_permission'):
                 command.dm_permission = False  # Solo en servidores
+            print(f"  🔧 Configurado: {command.name}")
         
-        # Registrar comandos nuevamente
+        # Registrar comandos nuevamente (global)
         synced = await bot.tree.sync()
-        print(f"✅ {len(synced)} comandos registrados con permisos públicos")
+        print(f"✅ {len(synced)} comandos registrados globalmente")
         
         # Mostrar información de cada comando registrado
         for cmd in synced:
-            print(f"  📝 Comando: /{cmd.name} - Permisos: Público (@everyone)")
+            print(f"  📝 /{cmd.name} - {cmd.description}")
             
     except Exception as e:
-        print(f"❌ Error durante la limpieza/sincronización: {e}")
+        print(f"❌ ERROR CRÍTICO durante sincronización: {e}")
         import traceback
         traceback.print_exc()
 
