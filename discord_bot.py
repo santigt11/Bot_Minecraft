@@ -395,38 +395,47 @@ async def check_permisos(interaction: discord.Interaction):
     
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
+@bot.tree.command(name="sync", description="[OWNER] Sincronizar comandos manualmente")
+async def sync_commands(interaction: discord.Interaction):
+    """Comando para sincronizar comandos manualmente (solo para dueños)"""
+    if not await bot.is_owner(interaction.user):
+        await interaction.response.send_message("❌ Solo el dueño del bot puede usar este comando.", ephemeral=True)
+        return
+    
+    await interaction.response.defer(ephemeral=True)
+    
+    try:
+        synced = await bot.tree.sync()
+        await interaction.followup.send(f"✅ Comandos sincronizados: {len(synced)}\n" + 
+                                      "\n".join([f"• /{cmd.name}" for cmd in synced]), ephemeral=True)
+    except Exception as e:
+        await interaction.followup.send(f"❌ Error al sincronizar: {e}", ephemeral=True)
+
 # Sincronizar comandos al iniciar
 @bot.event
 async def setup_hook():
-    print("🔄 Limpiando comandos antiguos...")
+    print("🔄 Configurando comandos...")
     try:
-        # Limpiar todos los comandos existentes (comandos globales)
-        bot.tree.clear_commands(guild=None)
-        
-        # Sincronizar para limpiar comandos en Discord
-        await bot.tree.sync()
-        print("🧹 Comandos antiguos eliminados")
-        
-        # Esperar un momento para asegurar la limpieza
-        await asyncio.sleep(1)
+        # NO limpiar comandos, solo configurar permisos y sincronizar
+        print("⚙️ Configurando permisos por defecto...")
         
         # Configurar permisos por defecto explícitamente
         for command in bot.tree.walk_commands():
-            if hasattr(command, 'default_member_permissions'):
-                command.default_member_permissions = None  # Sin restricciones
-            if hasattr(command, 'dm_permission'):
-                command.dm_permission = False  # Solo en servidores
+            command.default_member_permissions = None  # Sin restricciones
+            command.dm_permission = False  # Solo en servidores
+            print(f"  🔧 Configurado: /{command.name}")
         
-        # Registrar comandos nuevamente
+        # Sincronizar comandos
+        print("🔄 Sincronizando comandos...")
         synced = await bot.tree.sync()
-        print(f"✅ {len(synced)} comandos registrados con permisos públicos")
+        print(f"✅ {len(synced)} comandos sincronizados correctamente")
         
         # Mostrar información de cada comando registrado
         for cmd in synced:
-            print(f"  📝 Comando: /{cmd.name} - Permisos: Público (@everyone)")
+            print(f"  📝 /{cmd.name} - {cmd.description}")
             
     except Exception as e:
-        print(f"❌ Error durante la limpieza/sincronización: {e}")
+        print(f"❌ Error durante la sincronización: {e}")
         import traceback
         traceback.print_exc()
 
