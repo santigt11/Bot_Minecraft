@@ -342,109 +342,91 @@ async def help_minecraft(interaction: discord.Interaction):
         value="⛔ Detiene el servidor de Minecraft", 
         inline=False
     )
+    embed.add_field(
+        name="/permisos", 
+        value="🔍 Verifica tus permisos en el servidor", 
+        inline=False
+    )
     
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
-@bot.tree.command(name="forzarsync", description="[OWNER] Fuerza sincronización de comandos")
-async def force_sync(interaction: discord.Interaction):
-    """Comando para forzar sincronización (solo para dueños)"""
-    if not await bot.is_owner(interaction.user):
-        await interaction.response.send_message("❌ Solo el dueño del bot puede usar este comando.", ephemeral=True)
-        return
-    
-    await interaction.response.defer(ephemeral=True)
-    
-    try:
-        # Limpiar y sincronizar
-        bot.tree.clear_commands()
-        synced = await bot.tree.sync()
-        await interaction.followup.send(f"✅ Sincronización forzada completada. {len(synced)} comandos registrados.", ephemeral=True)
-    except Exception as e:
-        await interaction.followup.send(f"❌ Error en sincronización: {e}", ephemeral=True)
-
-@bot.tree.command(name="test", description="Comando de prueba simple")
-async def test_command(interaction: discord.Interaction):
-    """Comando de prueba muy simple"""
-    await interaction.response.send_message("✅ El bot funciona correctamente!", ephemeral=True)
-
-@bot.tree.command(name="debugpermisos", description="[DEBUG] Verifica permisos del usuario actual")
-@app_commands.describe()
-@app_commands.guild_only()
-async def debug_permisos(interaction: discord.Interaction):
-    """Comando de depuración para verificar permisos"""
+@bot.tree.command(name="permisos", description="Verifica los permisos del usuario")
+async def check_permisos(interaction: discord.Interaction):
+    """Comando para verificar permisos del usuario"""
     user = interaction.user
     guild = interaction.guild
     
     embed = discord.Embed(
-        title="🔍 Debug de Permisos",
-        description=f"Información de permisos para {user.mention}",
-        color=0xffaa00
+        title="🔍 Información de Permisos",
+        description=f"Permisos de {user.mention}",
+        color=0x00ff00
     )
     
-    embed.add_field(name="Usuario", value=f"{user.name}#{user.discriminator}", inline=True)
-    embed.add_field(name="ID", value=f"{user.id}", inline=True)
-    embed.add_field(name="Bot Owner", value=f"{await bot.is_owner(user)}", inline=True)
+    # Información básica del usuario
+    embed.add_field(name="👤 Usuario", value=f"{user.name}", inline=True)
+    embed.add_field(name="🆔 ID", value=f"{user.id}", inline=True)
+    embed.add_field(name="🤖 Es Bot Owner", value=f"{'✅ Sí' if await bot.is_owner(user) else '❌ No'}", inline=True)
     
-    # Verificar permisos en el servidor
-    member = guild.get_member(user.id)
+    # Información del miembro en el servidor
+    member = guild.get_member(user.id) if guild else None
     if member:
-        embed.add_field(name="Roles", value=f"{len(member.roles)} roles", inline=True)
-        embed.add_field(name="Es Admin", value=f"{member.guild_permissions.administrator}", inline=True)
-        embed.add_field(name="Gestionar Servidor", value=f"{member.guild_permissions.manage_guild}", inline=True)
+        embed.add_field(name="👑 Roles", value=f"{len(member.roles)} roles", inline=True)
+        embed.add_field(name="⚙️ Administrador", value=f"{'✅ Sí' if member.guild_permissions.administrator else '❌ No'}", inline=True)
+        embed.add_field(name="🛠️ Gestionar Servidor", value=f"{'✅ Sí' if member.guild_permissions.manage_guild else '❌ No'}", inline=True)
         
-        # Mostrar algunos roles importantes
+        # Mostrar roles importantes
         important_roles = []
         for role in member.roles:
-            if role.name.lower() in ['admin', 'administrator', 'dueño', 'owner', 'moderator', 'mod']:
+            if role.name != "@everyone":  # Excluir el rol everyone
                 important_roles.append(role.name)
         
         if important_roles:
-            embed.add_field(name="Roles Importantes", value=", ".join(important_roles), inline=False)
+            roles_text = ", ".join(important_roles[:5])  # Mostrar máximo 5 roles
+            if len(important_roles) > 5:
+                roles_text += f" y {len(important_roles) - 5} más..."
+            embed.add_field(name="🎭 Tus Roles", value=roles_text, inline=False)
+    
+    # Información sobre comandos slash
+    embed.add_field(
+        name="📋 Comandos Disponibles", 
+        value="Si puedes ver este comando, deberías poder usar todos los comandos de Minecraft.", 
+        inline=False
+    )
     
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 # Sincronizar comandos al iniciar
 @bot.event
 async def setup_hook():
-    print("🔄 Iniciando limpieza completa de comandos...")
+    print("🔄 Limpiando comandos antiguos...")
     try:
-        # Limpiar todos los comandos existentes (global y guild)
+        # Limpiar todos los comandos existentes
         bot.tree.clear_commands()
         
-        # Sincronizar para limpiar comandos globales
+        # Sincronizar para limpiar comandos en Discord
         await bot.tree.sync()
-        print("🧹 Comandos globales eliminados")
+        print("🧹 Comandos antiguos eliminados")
         
-        # También limpiar comandos específicos de guild si existe
-        for guild in bot.guilds:
-            try:
-                await bot.tree.sync(guild=guild)
-                print(f"🧹 Comandos del servidor {guild.name} eliminados")
-            except Exception as e:
-                print(f"⚠️ Error limpiando comandos del servidor {guild.name}: {e}")
+        # Esperar un momento para asegurar la limpieza
+        await asyncio.sleep(1)
         
-        # Esperar un momento
-        await asyncio.sleep(2)
-        
-        # Configurar permisos por defecto explícitamente para todos los comandos
-        print("⚙️ Configurando permisos por defecto...")
+        # Configurar permisos por defecto explícitamente
         for command in bot.tree.walk_commands():
             if hasattr(command, 'default_member_permissions'):
                 command.default_member_permissions = None  # Sin restricciones
             if hasattr(command, 'dm_permission'):
                 command.dm_permission = False  # Solo en servidores
-            print(f"  🔧 Configurado: {command.name}")
         
-        # Registrar comandos nuevamente (global)
+        # Registrar comandos nuevamente
         synced = await bot.tree.sync()
-        print(f"✅ {len(synced)} comandos registrados globalmente")
+        print(f"✅ {len(synced)} comandos registrados con permisos públicos")
         
         # Mostrar información de cada comando registrado
         for cmd in synced:
-            print(f"  📝 /{cmd.name} - {cmd.description}")
+            print(f"  📝 Comando: /{cmd.name} - Permisos: Público (@everyone)")
             
     except Exception as e:
-        print(f"❌ ERROR CRÍTICO durante sincronización: {e}")
+        print(f"❌ Error durante la limpieza/sincronización: {e}")
         import traceback
         traceback.print_exc()
 
