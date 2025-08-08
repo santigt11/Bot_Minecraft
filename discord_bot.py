@@ -400,8 +400,8 @@ async def check_permisos(interaction: discord.Interaction):
 async def setup_hook():
     print("🔄 Limpiando comandos antiguos...")
     try:
-        # Limpiar todos los comandos existentes
-        bot.tree.clear_commands()
+        # Limpiar todos los comandos existentes (comandos globales)
+        bot.tree.clear_commands(guild=None)
         
         # Sincronizar para limpiar comandos en Discord
         await bot.tree.sync()
