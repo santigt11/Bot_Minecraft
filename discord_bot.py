@@ -144,7 +144,6 @@ async def check_server_status(interaction: discord.Interaction):
     return status_info
 
 @bot.tree.command(name="statusminecraft", description="Muestra el estado del servidor de Minecraft")
-@app_commands.default_permissions(use_application_commands=True)
 async def server_status(interaction: discord.Interaction):
     """Comando para ver el estado del servidor"""
     await interaction.response.defer()
@@ -169,7 +168,6 @@ async def server_status(interaction: discord.Interaction):
     await interaction.followup.send(embed=embed)
 
 @bot.tree.command(name="startminecraft", description="Inicia el servidor de Minecraft")
-@app_commands.default_permissions(use_application_commands=True)
 async def start_server(interaction: discord.Interaction):
     """Comando para iniciar el servidor"""
     try:
@@ -245,7 +243,6 @@ async def start_server(interaction: discord.Interaction):
         logging.error(f"Error en start_server: {e}")
 
 @bot.tree.command(name="stopminecraft", description="Detiene el servidor de Minecraft")
-@app_commands.default_permissions(use_application_commands=True)
 async def stop_server(interaction: discord.Interaction):
     """Comando para detener el servidor"""
     try:
@@ -314,7 +311,6 @@ async def stop_server(interaction: discord.Interaction):
         logging.error(f"Error en stop_server: {e}")
 
 @bot.tree.command(name="ayudaminecraft", description="Muestra todos los comandos disponibles para Minecraft")
-@app_commands.default_permissions(use_application_commands=True)
 async def help_minecraft(interaction: discord.Interaction):
     """Comando de ayuda personalizado"""
     embed = discord.Embed(
@@ -341,15 +337,34 @@ async def help_minecraft(interaction: discord.Interaction):
     
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
+# Sincronizar comandos al iniciar
+@bot.event
+async def setup_hook():
+    print("🔄 Limpiando comandos antiguos...")
+    try:
+        # Limpiar todos los comandos existentes
+        bot.tree.clear_commands()
+        
+        # Sincronizar para limpiar comandos en Discord
+        await bot.tree.sync()
+        print("🧹 Comandos antiguos eliminados")
+        
+        # Esperar un momento para asegurar la limpieza
+        await asyncio.sleep(1)
+        
+        # Registrar comandos nuevamente (automático por los decoradores)
+        synced = await bot.tree.sync()
+        print(f"✅ {len(synced)} comandos registrados con permisos limpios")
+        
+    except Exception as e:
+        print(f"❌ Error durante la limpieza/sincronización: {e}")
+
 @bot.event
 async def on_ready():
-    print(f'{bot.user} ha iniciado sesión!')
-    print(f'Bot está en {len(bot.guilds)} servidores')
-    try:
-        synced = await bot.tree.sync()
-        print(f"Comandos sincronizados: {len(synced)}")
-    except Exception as e:
-        print(f"Error al sincronizar comandos: {e}")
+    print(f'✅ {bot.user} ha iniciado sesión!')
+    print(f'🌐 Conectado a {len(bot.guilds)} servidores')
+    print('🔍 Usa /ayudaminecraft para ver los comandos disponibles')
+    print('🎮 Todos los comandos están disponibles para @everyone')
 
 @bot.event
 async def on_command_error(ctx, error):
@@ -358,28 +373,6 @@ async def on_command_error(ctx, error):
         return
     await ctx.send(f"❌ Error: {str(error)}")
     logging.error(f"Command error: {error}")
-
-# Sincronizar comandos al iniciar
-@bot.event
-async def setup_hook():
-    try:
-        synced = await bot.tree.sync()
-        print(f"✅ Comandos sincronizados: {len(synced)}")
-    except Exception as e:
-        print(f"❌ Error al sincronizar comandos: {e}")
-
-@bot.event
-async def on_ready():
-    print(f'✅ {bot.user} ha iniciado sesión!')
-    print(f'🌐 Conectado a {len(bot.guilds)} servidores')
-    print('🔍 Usa /ayuda para ver los comandos disponibles')
-    
-    # Intentar sincronizar comandos al iniciar
-    try:
-        synced = await bot.tree.sync()
-        print(f"✅ {len(synced)} comandos sincronizados")
-    except Exception as e:
-        print(f"❌ Error al sincronizar comandos: {e}")
 
 if __name__ == "__main__":
     # El token debe estar en una variable de entorno
