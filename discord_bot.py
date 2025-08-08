@@ -5,6 +5,7 @@ import asyncio
 import aiohttp
 import json
 import os
+import time
 from azure.identity import DefaultAzureCredential
 from azure.mgmt.containerinstance import ContainerInstanceManagementClient
 import logging
@@ -108,6 +109,7 @@ class MinecraftManager:
                 )
                 if container.instance_view and container.instance_view.state.lower() != 'running':
                     return True
+                import time
                 time.sleep(5)
                 
             logging.warning("El contenedor no se detuvo en el tiempo esperado")
@@ -142,6 +144,7 @@ async def check_server_status(interaction: discord.Interaction):
     return status_info
 
 @bot.tree.command(name="statusminecraft", description="Muestra el estado del servidor de Minecraft")
+@app_commands.default_permissions(use_application_commands=True)
 async def server_status(interaction: discord.Interaction):
     """Comando para ver el estado del servidor"""
     await interaction.response.defer()
@@ -157,15 +160,16 @@ async def server_status(interaction: discord.Interaction):
     
     status_emoji = "🟢" if status_info["status"] == "Running" else "🔴"
     embed.add_field(name="Estado", value=f"{status_emoji} {status_info['status']}", inline=True)
-    embed.add_field(name="IP", value=f"📡 {status_info['ip_address']}", inline=True)
+    embed.add_field(name="IP", value=f"📡 minecraftsanti.eastus.azurecontainer.io", inline=True)
     embed.add_field(name="Puerto", value="🔌 25565", inline=True)
     
     if status_info["status"] == "Running":
-        embed.add_field(name="Conectar", value=f"`{status_info['ip_address']}:25565`", inline=False)
-    
+        embed.add_field(name="Conectar", value=f"`minecraftsanti.eastus.azurecontainer.io:25565`", inline=False)
+
     await interaction.followup.send(embed=embed)
 
 @bot.tree.command(name="startminecraft", description="Inicia el servidor de Minecraft")
+@app_commands.default_permissions(use_application_commands=True)
 async def start_server(interaction: discord.Interaction):
     """Comando para iniciar el servidor"""
     try:
@@ -241,6 +245,7 @@ async def start_server(interaction: discord.Interaction):
         logging.error(f"Error en start_server: {e}")
 
 @bot.tree.command(name="stopminecraft", description="Detiene el servidor de Minecraft")
+@app_commands.default_permissions(use_application_commands=True)
 async def stop_server(interaction: discord.Interaction):
     """Comando para detener el servidor"""
     try:
@@ -309,6 +314,7 @@ async def stop_server(interaction: discord.Interaction):
         logging.error(f"Error en stop_server: {e}")
 
 @bot.tree.command(name="ayudaminecraft", description="Muestra todos los comandos disponibles para Minecraft")
+@app_commands.default_permissions(use_application_commands=True)
 async def help_minecraft(interaction: discord.Interaction):
     """Comando de ayuda personalizado"""
     embed = discord.Embed(
